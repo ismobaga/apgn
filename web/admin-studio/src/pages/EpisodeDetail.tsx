@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, type JobRun } from '../lib/api'
@@ -48,9 +49,9 @@ function PipelineProgress({ jobs }: { jobs: JobRun[] }) {
           const status = job?.status ?? 'pending'
           const bg =
             status === 'completed' ? 'bg-green-500' :
-            status === 'running' ? 'bg-blue-500 animate-pulse' :
-            status === 'failed' ? 'bg-red-500' :
-            'bg-gray-200'
+              status === 'running' ? 'bg-blue-500 animate-pulse' :
+                status === 'failed' ? 'bg-red-500' :
+                  'bg-gray-200'
           return (
             <div key={stage} className="flex flex-col items-center gap-1">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs text-white font-medium ${bg}`}>
@@ -70,6 +71,8 @@ function PipelineProgress({ jobs }: { jobs: JobRun[] }) {
 export default function EpisodeDetail() {
   const { episodeID } = useParams<{ episodeID: string }>()
   const qc = useQueryClient()
+  const [urlForm, setUrlForm] = useState({ url: '', title: '' })
+  const [textForm, setTextForm] = useState({ title: '', author: '', text: '' })
 
   const { data: episode, isLoading } = useQuery({
     queryKey: ['episode', episodeID],
@@ -106,6 +109,22 @@ export default function EpisodeDetail() {
   const retryMutation = useMutation({
     mutationFn: () => api.retryEpisode(episodeID!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['episode', episodeID] }),
+  })
+
+  const importURLMutation = useMutation({
+    mutationFn: () => api.importSourceURL(episodeID!, urlForm.url, urlForm.title),
+    onSuccess: () => {
+      setUrlForm({ url: '', title: '' })
+      qc.invalidateQueries({ queryKey: ['sources', episodeID] })
+    },
+  })
+
+  const importTextMutation = useMutation({
+    mutationFn: () => api.importSourceText(episodeID!, textForm.text, textForm.title, textForm.author),
+    onSuccess: () => {
+      setTextForm({ title: '', author: '', text: '' })
+      qc.invalidateQueries({ queryKey: ['sources', episodeID] })
+    },
   })
 
   if (isLoading) return <p className="text-gray-400">Loading…</p>
@@ -180,12 +199,88 @@ export default function EpisodeDetail() {
         </Card>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Add / Import Sources</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Source URL</label>
+                <input
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={urlForm.url}
+                  onChange={(e) => setUrlForm((f) => ({ ...f, url: e.target.value }))}
+                  placeholder="https://example.com/article"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title (optional)</label>
+                <input
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={urlForm.title}
+                  onChange={(e) => setUrlForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="Article or video title"
+                />
+              </div>
+              <Button
+                onClick={() => importURLMutation.mutate()}
+                disabled={importURLMutation.isPending || !urlForm.url.trim()}
+              >
+                {importURLMutation.isPending ? 'Importing URL…' : 'Import URL'}
+              </Button>
+              {importURLMutation.error && (
+                <p className="text-sm text-red-600">{(importURLMutation.error as Error).message}</p>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Paste text / notes</label>
+                <textarea
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  rows={6}
+                  value={textForm.text}
+                  onChange={(e) => setTextForm((f) => ({ ...f, text: e.target.value }))}
+                  placeholder="Paste transcript, research notes, or reference text here"
+                />
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <input
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={textForm.title}
+                  onChange={(e) => setTextForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="Title (optional)"
+                />
+                <input
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={textForm.author}
+                  onChange={(e) => setTextForm((f) => ({ ...f, author: e.target.value }))}
+                  placeholder="Author (optional)"
+                />
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() => importTextMutation.mutate()}
+                disabled={importTextMutation.isPending || !textForm.text.trim()}
+              >
+                {importTextMutation.isPending ? 'Saving text…' : 'Add Pasted Text'}
+              </Button>
+              {importTextMutation.error && (
+                <p className="text-sm text-red-600">{(importTextMutation.error as Error).message}</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle>Sources ({sources.length})</CardTitle></CardHeader>
           <CardContent className="p-0">
             {sources.length === 0 ? (
-              <p className="p-6 text-gray-400 text-sm">No sources added.</p>
+              <p className="p-6 text-gray-400 text-sm">No sources added yet. Use the form above to import a URL or paste text.</p>
             ) : (
               <ul className="divide-y divide-gray-100">
                 {sources.map((src) => (
@@ -197,9 +292,14 @@ export default function EpisodeDetail() {
                         </p>
                         {src.source_url && (
                           <a href={src.source_url} target="_blank" rel="noreferrer"
-                             className="text-xs text-indigo-600 hover:underline truncate block">
+                            className="text-xs text-indigo-600 hover:underline truncate block">
                             {src.source_url}
                           </a>
+                        )}
+                        {!src.source_url && src.extracted_text && (
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                            {src.extracted_text}
+                          </p>
                         )}
                       </div>
                       <Badge variant={src.selected ? 'success' : 'default'}>

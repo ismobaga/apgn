@@ -118,10 +118,15 @@ export const api = {
   // Sources
   listSources: (episodeId: string) =>
     request<EpisodeSource[]>(`/episodes/${episodeId}/sources`),
-  importSourceURL: (episodeId: string, url: string, title: string) =>
+  importSourceURL: (episodeId: string, url: string, title?: string) =>
     request<EpisodeSource>(`/episodes/${episodeId}/sources/import-url`, {
       method: 'POST',
       body: JSON.stringify({ url, title }),
+    }),
+  importSourceText: (episodeId: string, text: string, title?: string, author?: string) =>
+    request<EpisodeSource>(`/episodes/${episodeId}/sources/import-text`, {
+      method: 'POST',
+      body: JSON.stringify({ text, title, author }),
     }),
 
   // Scripts

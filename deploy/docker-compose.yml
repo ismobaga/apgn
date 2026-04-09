@@ -43,6 +43,13 @@ services:
       timeout: 5s
       retries: 3
 
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
   api:
     build:
       context: ..
@@ -69,11 +76,16 @@ services:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/podgen?sslmode=disable
       REDIS_URL: redis://redis:6379
       STORAGE_URL: http://minio:9000
+      LLM_PROVIDER: ollama
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: gemma3:latest
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ollama:
+        condition: service_started
 
   admin-studio:
     build:
@@ -88,3 +100,4 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  ollama_data:

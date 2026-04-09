@@ -65,9 +65,16 @@ worker service via a Redis queue.
 Configure providers via environment variables:
 
 ```bash
-OPENAI_API_KEY=sk-...         # LLM provider
-ELEVENLABS_API_KEY=...        # TTS provider
-STORAGE_URL=http://minio:9000 # S3-compatible storage
+LLM_PROVIDER=ollama                    # default local LLM provider
+OLLAMA_HOST=http://ollama:11434       # Ollama endpoint
+OLLAMA_MODEL=gemma3:latest            # model used for briefs/scripts/metadata
+
+# Optional alternative:
+OPENAI_API_KEY=sk-...                  # only used when LLM_PROVIDER=openai
+OPENAI_MODEL=gpt-4o-mini
+
+ELEVENLABS_API_KEY=...                 # TTS provider
+STORAGE_URL=http://minio:9000          # S3-compatible storage
 ```
 
-Providers are optional in the worker — if not configured, stages are skipped (no-op).
+Providers are optional in the worker — if not configured, stages are skipped (no-op). The default worker configuration now uses Ollama for text generation.
